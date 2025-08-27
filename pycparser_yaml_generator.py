@@ -255,10 +255,10 @@ class PycparserYamlGenerator:
     
     def _remove_comments(self, content: str) -> str:
         """Remove C-style comments"""
-        # Remove single-line comments
-        content = re.sub(r'//.*?$', '', content, flags=re.MULTILINE)
-        # Remove multi-line comments
+        # Remove multi-line comments first to handle nested // inside /* */
         content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+        # Then remove single-line comments
+        content = re.sub(r'//.*?$', '', content, flags=re.MULTILINE)
         return content
     
     def _extract_pragma_pack(self, content: str) -> None:
@@ -272,6 +272,9 @@ class PycparserYamlGenerator:
     
     def _process_preprocessor_directives(self, content: str) -> str:
         """Process preprocessing directives"""
+        # First handle conditional compilation
+        content = self._process_conditional_compilation(content)
+        
         lines = content.split('\n')
         processed_lines = []
         
@@ -301,46 +304,182 @@ class PycparserYamlGenerator:
         
         return '\n'.join(processed_lines)
     
+    def _process_conditional_compilation(self, content: str) -> str:
+        """Process conditional compilation directives like #if, #ifdef, #else, #endif"""
+        lines = content.split('\n')
+        result_lines = []
+        
+        # Track conditional compilation state
+        condition_stack = []  # Stack of (condition_met, in_else) tuples
+        current_condition = True  # Whether current block should be included
+        
+        # Extract defined macros for ifdef/ifndef evaluation
+        defined_macros = set()
+        macro_pattern = r'#define\s+(\w+)'
+        for line in lines:
+            # Use search instead of match to handle lines with leading whitespace
+            match = re.search(macro_pattern, line.strip())
+            if match:
+                macro_name = match.group(1)
+                defined_macros.add(macro_name)
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            line_stripped = line.strip()
+            
+            if line_stripped.startswith('#if '):
+                # Parse #if condition
+                condition_expr = line_stripped[4:].strip()
+                condition_met = self._evaluate_condition(condition_expr, defined_macros)
+                condition_stack.append((current_condition, False))
+                current_condition = current_condition and condition_met
+                
+            elif line_stripped.startswith('#ifdef '):
+                # Check if macro is defined
+                macro_name = line_stripped[7:].strip()
+                condition_met = macro_name in defined_macros
+                condition_stack.append((current_condition, False))
+                current_condition = current_condition and condition_met
+                
+            elif line_stripped.startswith('#ifndef '):
+                # Check if macro is NOT defined - but for header guards, assume they should be included
+                macro_name = line_stripped[8:].strip()
+                # Skip header guard patterns (simple heuristic: macro name ends with _H)
+                if macro_name.endswith('_H'):
+                    # Assume this is a header guard, skip the #ifndef and include content
+                    condition_stack.append((current_condition, False))
+                    current_condition = current_condition  # Don't change condition for header guards
+                else:
+                    condition_met = macro_name not in defined_macros
+                    condition_stack.append((current_condition, False))
+                    current_condition = current_condition and condition_met
+                
+            elif line_stripped.startswith('#else'):
+                if condition_stack:
+                    parent_condition, _ = condition_stack[-1]
+                    condition_stack[-1] = (parent_condition, True)
+                    # Flip the current condition within the parent scope
+                    current_condition = parent_condition and not current_condition
+                    
+            elif line_stripped.startswith('#elif '):
+                # Treat #elif as #else followed by #if
+                if condition_stack:
+                    parent_condition, in_else = condition_stack[-1]
+                    if not in_else:  # Only process #elif if we haven't seen #else yet
+                        condition_expr = line_stripped[6:].strip()
+                        condition_met = self._evaluate_condition(condition_expr, defined_macros)
+                        current_condition = parent_condition and (not current_condition) and condition_met
+                        
+            elif line_stripped.startswith('#endif'):
+                if condition_stack:
+                    current_condition, _ = condition_stack.pop()
+                    
+            else:
+                # Regular line - include it if current condition is true
+                if current_condition:
+                    result_lines.append(line)
+            
+            i += 1
+        
+        return '\n'.join(result_lines)
+    
+    def _evaluate_condition(self, condition: str, defined_macros: set) -> bool:
+        """Evaluate a preprocessor condition like '0', '1', 'defined(MACRO)', etc."""
+        condition = condition.strip()
+        
+        # Handle simple numeric conditions
+        if condition == '0':
+            return False
+        elif condition == '1':
+            return True
+        
+        # Handle defined() expressions
+        defined_pattern = r'defined\s*\(\s*(\w+)\s*\)'
+        condition = re.sub(defined_pattern, 
+                          lambda m: '1' if m.group(1) in defined_macros else '0', 
+                          condition)
+        
+        # Replace macro names with 1 if defined, 0 if not
+        for macro in defined_macros:
+            condition = re.sub(r'\b' + re.escape(macro) + r'\b', '1', condition)
+        
+        # Replace any remaining unknown identifiers with 0
+        condition = re.sub(r'\b[a-zA-Z_]\w*\b', '0', condition)
+        
+        # Try to evaluate the expression safely
+        try:
+            # Only allow basic arithmetic and comparison operators
+            if re.match(r'^[0-9+\-*/()&|!<>=\s]+$', condition):
+                # Replace C-style operators with Python equivalents
+                condition = condition.replace('&&', ' and ')
+                condition = condition.replace('||', ' or ')
+                condition = condition.replace('!', ' not ')
+                result = eval(condition)
+                return bool(result)
+        except:
+            pass
+        
+        # Default to False for complex or unparseable conditions
+        return False
+    
     def _expand_simple_macros(self, content: str) -> str:
         """Expand simple numeric macros, supporting expression calculation"""
         # Extract macro definitions (including expressions)
-        macro_pattern = r'#define\s+(\w+)\s+(.+?)(?=\n|$)'
+        # Use line-by-line processing to avoid cross-line matching
+        lines = content.split('\n')
         macros = {}
         
-        for match in re.finditer(macro_pattern, content, re.MULTILINE):
-            name, value = match.groups()
-            value = value.strip()
-            
-            # If it's a simple number
-            if value.isdigit():
-                macros[name] = value
-            # If it's an expression, try to calculate
-            elif re.match(r'^[\d+\-*/().\w\s]+$', value):
-                # First replace known macros
-                for known_macro, known_value in macros.items():
-                    value = re.sub(r'\b' + re.escape(known_macro) + r'\b', known_value, value)
+        for line in lines:
+            line_stripped = line.strip()
+            # Match #define directives
+            define_match = re.match(r'#define\s+(\w+)(?:\s+(.*))?$', line_stripped)
+            if define_match:
+                name = define_match.group(1)
+                value = define_match.group(2)
                 
-                try:
-                    # Try to evaluate expression
-                    # Remove parentheses and calculate
-                    clean_value = value.replace('(', '').replace(')', '')
-                    if re.match(r'^[\d+\-*/.\s]+$', clean_value):
-                        result = eval(clean_value)
-                        macros[name] = str(int(result))
-                    else:
-                        macros[name] = value
-                except:
+                # Handle empty macro definitions (like #define __TAB_RECOVER__)
+                if value is None or value.strip() == '':
+                    macros[name] = ''  # Empty string for empty macros
+                    if self.config.verbose:
+                        print(f"Found empty macro definition: {name}")
+                    continue
+                    
+                value = value.strip()
+                
+                # If it's a simple number
+                if value.isdigit():
                     macros[name] = value
-            else:
-                macros[name] = value
-            
-            if self.config.verbose:
-                print(f"Found macro definition: {name} = {value} -> {macros[name]}")
+                # If it's an expression, try to calculate
+                elif re.match(r'^[\d+\-*/().\w\s]+$', value):
+                    # First replace known macros
+                    for known_macro, known_value in macros.items():
+                        if known_value:  # Only replace non-empty macros
+                            value = re.sub(r'\b' + re.escape(known_macro) + r'\b', known_value, value)
+                    
+                    try:
+                        # Try to evaluate expression
+                        # Remove parentheses and calculate
+                        clean_value = value.replace('(', '').replace(')', '')
+                        if re.match(r'^[\d+\-*/.\s]+$', clean_value):
+                            result = eval(clean_value)
+                            macros[name] = str(int(result))
+                        else:
+                            macros[name] = value
+                    except:
+                        macros[name] = value
+                else:
+                    macros[name] = value
+                
+                if self.config.verbose:
+                    print(f"Found macro definition: {name} = {value if value else '(empty)'} -> {macros[name]}")
         
         # Multiple rounds of replacement to ensure nested macros are properly expanded
+        # But skip empty macros for expansion (they should remain as empty)
         for _ in range(3):  # Maximum 3 rounds of replacement
             for name, value in macros.items():
-                content = re.sub(r'\b' + re.escape(name) + r'\b', value, content)
+                if value:  # Only expand non-empty macros
+                    content = re.sub(r'\b' + re.escape(name) + r'\b', value, content)
         
         return content
     
