@@ -166,6 +166,9 @@ class PycparserYamlGenerator:
             parser = c_parser.CParser()
             ast = parser.parse(preprocessed_content, filename=filename)
             
+            # Store AST for constant resolution
+            self.ast = ast
+            
             if self.config.verbose:
                 print("AST parsing successful, starting type definition analysis...")
                 
@@ -1099,6 +1102,7 @@ class PycparserYamlGenerator:
         if const_node is None:
             return 1
         
+        # Handle constant literals
         if hasattr(const_node, 'value'):
             try:
                 value = const_node.value
@@ -1112,7 +1116,42 @@ class PycparserYamlGenerator:
             except ValueError:
                 return 1
         
+        # Handle identifier nodes (like P_RETRY_VALID_RECORD_CNT)
+        if hasattr(const_node, 'name'):
+            identifier = const_node.name
+            # Look up the identifier in the AST constants
+            const_value = self._resolve_constant_identifier(identifier)
+            if const_value is not None:
+                return const_value
+                
         return 1
+    
+    def _resolve_constant_identifier(self, identifier: str) -> Optional[int]:
+        """Resolve constant identifier by searching through the AST"""
+        try:
+            # Search through the AST for constant declarations
+            for node in self.ast.ext:
+                if isinstance(node, Decl) and node.name == identifier:
+                    # Check if it's a const static declaration
+                    if (hasattr(node, 'storage') and 'static' in (node.storage or []) and
+                        hasattr(node, 'quals') and 'const' in (node.quals or [])):
+                        if hasattr(node, 'init') and hasattr(node.init, 'value'):
+                            # Parse the value, handling parentheses
+                            value_str = node.init.value
+                            if value_str.startswith('(') and value_str.endswith(')'):
+                                value_str = value_str[1:-1]  # Remove parentheses
+                            try:
+                                if value_str.startswith('0x') or value_str.startswith('0X'):
+                                    return int(value_str, 16)
+                                elif value_str.startswith('0') and len(value_str) > 1 and value_str.isdigit():
+                                    return int(value_str, 8)
+                                else:
+                                    return int(value_str)
+                            except ValueError:
+                                pass
+            return None
+        except Exception:
+            return None
     
     def save_yaml(self, data: Dict[str, Any], filename: str) -> bool:
         """Save as YAML file"""
