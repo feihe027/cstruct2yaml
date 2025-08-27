@@ -1,0 +1,11 @@
+# Core dependencies
+pycparser>=2.20
+PyYAML>=5.1
+
+# Development dependencies (optional)
+# Install with: pip install -r requirements-dev.txt
+pytest>=6.0
+pytest-cov>=2.0
+black>=20.0
+flake8>=3.8
+mypy>=0.800
