@@ -1,18 +1,27 @@
 #ifndef TEST_H
 #define TEST_H
 
+// PacketHeader struct for test and doc consistency
+typedef struct
+{
+    unsigned char type : 4;
+    unsigned char flags : 4;
+    unsigned short length;
+    unsigned int data[10];
+} PacketHeader;
+
 #include "example.h"
 
 #pragma pack(1)
 
-// 扩展宏定义
+// Extended macro definitions
 #define MAX_SECTORS 64
 #define SECTOR_SIZE 512
 #define MAX_PARTITIONS 4
-#define DEVICE_NAME_LEN (64+MAX_PARTITIONS)
+#define DEVICE_NAME_LEN (64 + MAX_PARTITIONS)
 #define SERIAL_NUMBER_LEN 32
 
-// 扩展的设备类型枚举
+// Extended device type enumeration
 typedef enum
 {
     DEVICE_TYPE_HDD = 0x01,
@@ -22,13 +31,13 @@ typedef enum
     DEVICE_TYPE_UNKNOWN = 0xFF
 } DeviceType;
 
-// 分区信息结构体
+// Partition information structure
 typedef struct
 {
-    unsigned char active : 1;  // 活动分区标志
-    unsigned char type : 7;    // 分区类型
-    unsigned int start_sector; // 起始扇区
-    unsigned int sector_count; // 扇区数量
+    unsigned char active : 1;  // Active partition flag
+    unsigned char type : 7;    // Partition type
+    unsigned int start_sector; // Start sector
+    unsigned int sector_count; // Sector count
     union
     {
         struct
@@ -42,10 +51,10 @@ typedef struct
         } flags;
         unsigned char raw_flags;
     };
-    char label[16]; // 分区标签
+    char label[16]; // Partition label
 } PartitionInfo;
 
-// 扇区统计信息
+// Sector statistics
 typedef struct
 {
     unsigned long long total_sectors;
@@ -54,20 +63,20 @@ typedef struct
     unsigned int sector_size;
     struct
     {
-        double read_speed_mbps;   // 读取速度 MB/s
-        double write_speed_mbps;  // 写入速度 MB/s
-        unsigned int read_count;  // 读取次数
-        unsigned int write_count; // 写入次数
+        double read_speed_mbps;   // Read speed MB/s
+        double write_speed_mbps;  // Write speed MB/s
+        unsigned int read_count;  // Read count
+        unsigned int write_count; // Write count
         unsigned long long total_bytes_read;
         unsigned long long total_bytes_written;
     } performance;
 } SectorStats;
 
-// 设备健康状态
+// Device health status
 typedef struct
 {
-    unsigned short temperature;      // 温度 (摄氏度 * 10)
-    unsigned char health_percentage; // 健康度百分比
+    unsigned short temperature;      // Temperature (Celsius * 10)
+    unsigned char health_percentage; // Health percentage
     union
     {
         struct
@@ -87,21 +96,21 @@ typedef struct
         unsigned char failure_predicted : 1;
         unsigned char reserved : 2;
     } status;
-    unsigned char error_log[32]; // 错误日志摘要
+    unsigned char error_log[32]; // Error log summary
 } DeviceHealth;
 
-// 复杂的设备描述符结构体
+// Complex device descriptor structure
 typedef struct
 {
-    FileHeader header; // 使用 example.h 中的 FileHeader
+    FileHeader header; // Using FileHeader from example.h
 
-    // 基本设备信息
+    // Basic device information
     DeviceType device_type;
     char device_name[DEVICE_NAME_LEN];
     char serial_number[SERIAL_NUMBER_LEN];
     char firmware_version[16];
 
-    // 物理特性
+    // Physical characteristics
     struct
     {
         unsigned short cylinders;
@@ -110,15 +119,15 @@ typedef struct
         unsigned int total_sectors;
     } geometry;
 
-    // 分区表
+    // Partition table
     PartitionInfo partitions[MAX_PARTITIONS];
     unsigned char partition_count;
 
-    // 性能和健康状态
+    // Performance and health status
     SectorStats stats;
     DeviceHealth health;
 
-    // 高级特性位域
+    // Advanced feature bit fields
     union
     {
         struct
@@ -138,15 +147,15 @@ typedef struct
         unsigned int raw_features;
     };
 
-    // 嵌套的匿名结构体和联合体
+    // Nested anonymous structures and unions
     struct
     {
         union
         {
             struct
             {
-                unsigned char interface_type : 4; // 接口类型 (SATA/USB/NVMe等)
-                unsigned char connector_type : 4; // 连接器类型
+                unsigned char interface_type : 4; // Interface type (SATA/USB/NVMe, etc.)
+                unsigned char connector_type : 4; // Connector type
             };
             unsigned char raw_interface;
         };
@@ -158,21 +167,21 @@ typedef struct
             unsigned short revision;
         } ids;
 
-        // 匿名联合体包含匿名结构体位域
+        // Anonymous union containing anonymous structure bit fields
         union
         {
             struct
             {
-                unsigned char link_speed : 3;    // 链路速度等级
-                unsigned char link_width : 3;    // 链路宽度
-                unsigned char link_active : 1;   // 链路激活状态
-                unsigned char link_training : 1; // 链路训练状态
+                unsigned char link_speed : 3;    // Link speed level
+                unsigned char link_width : 3;    // Link width
+                unsigned char link_active : 1;   // Link active status
+                unsigned char link_training : 1; // Link training status
             };
             unsigned char link_status;
         };
     } interface_info;
 
-    // 缓存配置
+    // Cache configuration
     struct
     {
         unsigned int cache_size_kb;
@@ -192,7 +201,7 @@ typedef struct
         unsigned short cache_line_size;
     } cache_config;
 
-    // 扩展属性数组
+    // Extended attribute array
     struct
     {
         unsigned short attribute_id;
@@ -200,10 +209,10 @@ typedef struct
         char description[32];
     } extended_attributes[16];
 
-    // 固件更新信息
+    // Firmware update information
     struct
     {
-        Version current_fw_version; // 重用 example.h 中的 Version
+        Version current_fw_version; // Reuse Version from example.h
         Version latest_fw_version;
         union
         {
@@ -221,7 +230,7 @@ typedef struct
         unsigned int update_size_bytes;
     } firmware_info;
 
-    // 安全特性
+    // Security features
     struct
     {
         union
@@ -244,19 +253,19 @@ typedef struct
         unsigned int failed_unlock_count;
     } security;
 
-    // 预留空间和校验
+    // Reserved space and checksum
     unsigned char reserved[64];
-    unsigned int structure_checksum; // 整个结构体的校验和
+    unsigned int structure_checksum; // Checksum for the entire structure
 
 } ComplexDeviceDescriptor;
 
-// 设备管理器结构体 - 管理多个设备
+// Device manager structure - manages multiple devices
 typedef struct
 {
     ComplexDeviceDescriptor devices[8];
     unsigned char device_count;
 
-    // 全局统计
+    // Global statistics
     struct
     {
         unsigned long long total_capacity_bytes;
@@ -266,7 +275,7 @@ typedef struct
         double average_response_time_ms;
     } global_stats;
 
-    // 系统配置
+    // System configuration
     union
     {
         struct
@@ -283,18 +292,18 @@ typedef struct
         unsigned char raw_system_flags;
     };
 
-    // 事件日志
+    // Event log
     struct
     {
         unsigned int timestamp;
         unsigned char event_type;
         unsigned char device_index;
         unsigned short event_code;
-        char description[64];
+        char description[2][64];
     } event_log[32];
 
     unsigned char log_count;
-    FileHeader config_header; // 再次使用 FileHeader
+    FileHeader config_header; // Using FileHeader again
 
 } DeviceManager;
 

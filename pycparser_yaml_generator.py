@@ -68,9 +68,16 @@ class FieldInfo:
     
     def to_dict(self, config: ConfigOptions) -> Dict[str, Any]:
         """Convert to dictionary"""
+        # Generate C# style array type name if it's an array
+        type_name = self.type_info.name
+        if self.type_info.is_array and self.type_info.array_dimensions:
+            # Build C# style array syntax: baseType[dim1][dim2]...
+            for dimension in self.type_info.array_dimensions:
+                type_name += f"[{dimension}]"
+        
         result = {
             'name': self.name,
-            'type': self.type_info.name,
+            'type': type_name,
             'size_bits': self.size_bits
         }
         
@@ -594,6 +601,14 @@ class PycparserYamlGenerator:
                         children = self._get_struct_children(typedef_node.type.type)
                     elif isinstance(typedef_node.type.type, c_ast.Union):
                         children = self._get_union_children(typedef_node.type.type)
+            # 对于匿名结构体数组，检查数组类型本身
+            elif type_info.is_struct and isinstance(decl.type, c_ast.ArrayDecl) and isinstance(decl.type.type, c_ast.TypeDecl):
+                if isinstance(decl.type.type.type, c_ast.Struct):
+                    # 匿名结构体数组，直接展开其成员
+                    children = self._get_struct_children(decl.type.type.type)
+                elif isinstance(decl.type.type.type, c_ast.Union):
+                    # 匿名联合体数组，直接展开其成员
+                    children = self._get_union_children(decl.type.type.type)
         
         # 如果不是数组，按原来的逻辑处理
         elif type_info.is_struct:
@@ -771,12 +786,20 @@ class PycparserYamlGenerator:
         """分析数组声明"""
         element_type_info, element_size = self._analyze_type(array_decl.type)
         
-        # 获取数组维度
+        # 获取当前维度
         array_size = 1
         if array_decl.dim:
             array_size = self._get_constant_value(array_decl.dim)
         
-        total_size = element_size * array_size
+        # 构建维度列表
+        dimensions = [array_size]
+        
+        # 如果元素类型也是数组，合并维度
+        if element_type_info.is_array:
+            dimensions.extend(element_type_info.array_dimensions)
+            total_size = element_size * array_size
+        else:
+            total_size = element_size * array_size
         
         # 保持元素类型的结构体/联合体标记
         return TypeInfo(
@@ -784,7 +807,7 @@ class PycparserYamlGenerator:
             size_bits=total_size,
             is_array=True,
             base_type=element_type_info.name,
-            array_dimensions=[array_size],
+            array_dimensions=dimensions,
             is_struct=element_type_info.is_struct,  # 保持结构体标记
             is_union=element_type_info.is_union,    # 保持联合体标记
             is_enum=element_type_info.is_enum       # 保持枚举标记

@@ -1,74 +1,161 @@
 # C Struct YAML Generator
 
-A flexible C struct analysis tool based on Python's pycparser library that converts complex C structures into detailed YAML description files.
+A powerful and flexible C struct analysis tool based on Python's pycparser library that converts complex C structures into detailed YAML description files. This tool provides comprehensive analysis of C data structures with bit-level precision, making it ideal for firmware development, protocol analysis, and memory layout optimization.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 
 ## Features
 
-- ✅ **Complex nested struct analysis** - Handles deeply nested structures and compositions
-- ✅ **Precise bitfield processing** - Accurate bitfield width and offset calculations
-- ✅ **Anonymous structures and unions** - Full support for anonymous members
-- ✅ **Array member analysis** - Multi-dimensional array support
-- ✅ **Bit-level precision** - Precise offset and size calculations at bit level
-- ✅ **Flexible output formats** - YAML and JSON output support
-- ✅ **Configurable alignment** - Customizable pack alignment settings
-- ✅ **Detailed member information** - Comprehensive field metadata
+### 🔍 **Comprehensive Structure Analysis**
+- ✅ **Complex nested struct analysis** - Handles deeply nested structures and compositions with unlimited depth
+- ✅ **Anonymous structures and unions** - Full support for anonymous members with automatic member expansion
+- ✅ **Union member analysis** - Accurate union size calculation and member overlap detection
+- ✅ **Typedef resolution** - Complete typedef chain resolution and type aliasing
+- ✅ **Struct inheritance** - Handles complex struct compositions and nested relationships
+
+### 🎯 **Precise Memory Layout**
+- ✅ **Bit-level precision** - Precise offset and size calculations at bit level granularity
+- ✅ **Bitfield processing** - Accurate bitfield width, offset, and packing calculations
+- ✅ **Memory alignment** - Configurable pack alignment with automatic padding detection
+- ✅ **Structure padding** - Automatic detection and calculation of padding bytes
+- ✅ **Pointer analysis** - Multi-level pointer support with base type tracking
+
+### 📊 **Advanced Array Support**
+- ✅ **Multi-dimensional arrays** - Support for arrays of any dimension with size calculation
+- ✅ **C# style array notation** - Arrays displayed as `type[dim1][dim2]...` for clarity
+- ✅ **Array of structures** - Complex nested array structures with member expansion
+- ✅ **Dynamic array detection** - Flexible array member support
+- ✅ **Array size calculation** - Precise total size calculation for multi-dimensional arrays
+
+### ⚙️ **Intelligent Preprocessing**
+- ✅ **Macro expansion** - Smart macro evaluation with expression calculation
+- ✅ **Include file resolution** - Recursive include file processing
+- ✅ **Conditional compilation** - Preprocessing directive handling
+- ✅ **Pragma pack support** - Automatic pack directive detection and application
+- ✅ **Comment removal** - Clean C/C++ comment stripping
+
+### 📤 **Flexible Output & Configuration**
+- ✅ **YAML output format** - Human-readable structured output
+- ✅ **Configurable detail level** - Optional inclusion of bitfields, offsets, and children
+- ✅ **Verbose analysis mode** - Detailed processing information and debugging
+- ✅ **Single or batch processing** - Analyze specific structs or entire files
+- ✅ **Custom alignment settings** - Configurable pack alignment for different platforms
 
 ## Project Structure
 
 ```
-ai_parse_structure/
-├── pycparser_yaml_generator.py  # Main YAML generator
-├── yaml_viewer.py               # YAML file viewer utility
-├── test.h                       # Test C header file
+cstruct2yaml/
+├── pycparser_yaml_generator.py  # Main YAML generator (core analysis engine)
+├── yaml_viewer.py               # YAML file viewer and analysis utility  
+├── test.h                       # Comprehensive test C header file
 ├── example.h                    # Example dependency header
-├── README.md                    # This file
+├── DeviceManager.yml            # Generated YAML output example
+├── requirements.txt             # Production dependencies
+├── requirements-dev.txt         # Development dependencies
+├── setup.py                     # Package setup and installation
+├── README.md                    # This documentation file
 ├── LICENSE                      # MIT license
-└── examples/                    # Example outputs
-    ├── single_struct.yml        # Single struct output example
-    └── all_structs.yml          # Multi-struct output example
+├── CHANGELOG.md                 # Version history and changes
+├── CONTRIBUTING.md              # Contribution guidelines
+└── tests/                       # Test suite
+    ├── test_integration.py      # Integration tests
+    └── __init__.py              # Test package initialization
 ```
+
+## Supported C Features
+
+### 🏗️ **Data Types**
+- **Basic Types**: `char`, `int`, `short`, `long`, `long long`, `float`, `double`
+- **Signed/Unsigned Variants**: Complete support for all signed and unsigned integer types
+- **Size Variants**: `int8_t`, `int16_t`, `int32_t`, `int64_t`, `size_t`, `ptrdiff_t`
+- **Character Types**: `char`, `wchar_t`, `char16_t`, `char32_t`
+- **Boolean Types**: `bool`, `_Bool`
+
+### 🔗 **Complex Types**
+- **Pointers**: Single and multi-level pointers (`*`, `**`, `***`, etc.)
+- **Arrays**: Single and multi-dimensional arrays with C# style notation
+- **Structures**: Named and anonymous structures with nested support
+- **Unions**: Named and anonymous unions with overlap analysis
+- **Enumerations**: Named and anonymous enums with value tracking
+- **Function Pointers**: Function pointer type analysis
+
+### ⚡ **Special Features**
+- **Bitfields**: Precise bit-level field analysis with packing optimization
+- **Anonymous Members**: Automatic expansion of anonymous struct/union members
+- **Nested Structures**: Unlimited depth nested structure analysis
+- **Typedef Chains**: Complete typedef resolution and type aliasing
+- **Pragma Pack**: Automatic pack directive detection and application
+- **Zero-Length Arrays**: Flexible array member support
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.7 or higher
-- pip package manager
+- **Python 3.7+** - Required for modern asyncio and type hinting support
+- **pip package manager** - For dependency installation
+- **C preprocessor** (optional) - For advanced macro processing
+
+### Quick Install
+
+```bash
+# Clone the repository
+git clone https://github.com/feihe027/cstruct2yaml.git
+cd cstruct2yaml
+
+# Install dependencies
+pip install -r requirements.txt
+
+# For development environment
+pip install -r requirements-dev.txt
+```
 
 ### Dependencies
 
-```bash
-pip install pycparser pyyaml
-```
+**Core Dependencies:**
+- `pycparser>=2.20` - C parser and AST analysis
+- `PyYAML>=5.4.1` - YAML file generation and parsing
 
-### Clone Repository
+**Development Dependencies:**
+- `pytest>=6.0` - Unit testing framework
+- `pytest-cov>=2.10` - Test coverage reporting
+- `black>=21.0` - Code formatting
+- `flake8>=3.8` - Code linting
+
+### Verify Installation
 
 ```bash
-git clone https://github.com/yourusername/ai_parse_structure.git
-cd ai_parse_structure
+# Test the installation
+python pycparser_yaml_generator.py test.h -s DeviceManager -v
+
+# Expected output: Should generate DeviceManager.yml successfully
 ```
 
 ## Quick Start
 
 ### Analyze a specific struct
 
+
 ```bash
-python pycparser_yaml_generator.py test.h -s MyStruct -v
+c-struct-yaml test.h -s MyStruct -v
 ```
 
 ### Analyze all structs in a file
 
+
 ```bash
-python pycparser_yaml_generator.py test.h -v
+python pycparser_yaml_generator.py test.h -s DeviceManager
+# or
+c-struct-yaml test.h -v
 ```
 
 ### View generated YAML
 
+
 ```bash
-python yaml_viewer.py MyStruct.yml
+python yaml_viewer.py  DeviceManager.yml
+# or
+yaml-struct-viewer DeviceManager.yml
 ```
 
 ## Usage Guide
@@ -167,7 +254,6 @@ struct_definition:
   offset_bit_in_byte: 0
   size_bytes: 13369
   size_bit_remainder: 0
-  members:
     - name: devices
       type: ComplexDeviceDescriptor
       size_bits: 87040
@@ -178,9 +264,8 @@ struct_definition:
       size_bit_remainder: 0
       is_array: true
       array_dimensions: [8]
-      is_struct: true
+  ```
       members: [...]
-    # ... more members
 ```
 
 ### Multi-Struct Format
@@ -199,7 +284,7 @@ structs:
     type: struct DeviceManager
     size_bits: 106952
     members: [...]
-  # ... more structs
+  # ... more structs（如all_structs.yml等为用户生成的输出文件）
 
 unions: {}
 ```
@@ -373,7 +458,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you encounter any issues or have questions:
 
-1. Check the [Issues](https://github.com/yourusername/ai_parse_structure/issues) page
+1. Check the [Issues](https://github.com/feihe027/cstruct2yaml/issues) page
 2. Create a new issue with detailed description
 3. Include sample C code and expected output when possible
 
